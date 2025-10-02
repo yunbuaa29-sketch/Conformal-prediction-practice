@@ -1,4 +1,4 @@
-### Generate Y following descrete distriution with label 1,2,3 each with constant probability
+### Generate Y following descrete distriution with label 0,1,2 each with constant probability
 ### p1 = 0.2, p2 = 0.5, p3 = 0.3
 ### Generate X following normal ditribution
 ### funture improvement: define pmf
@@ -62,3 +62,4 @@ def Simple_generater(number = 1000, label = [0, 1, 2], probss = [0.1,0.3,0.6], p
     return x_sample, y_sample, x_test, y_test
 
 Simple_generater()
+
