@@ -4,16 +4,12 @@
 import numpy as np
 import pandas as pd
 
-def Simple_generater(number = 1000, label = [0, 1, 2], probss = [0.1,0.3,0.6], probst = [0.5,0.2,0.3]):
-    """
-    Returns
-    -------
-    """
-    
+def Simple_generater(number = 100, label = [0, 1, 2], probss = [0.3,0.3,0.4], probst = [0.6,0.2,0.2]):
+ 
     # Parameters for Y sample
     labels = label          # possible values of Y
     probss = probss    # probabilities
-    number = 1000                    # number of samples
+    number = number                    # number of samples
 
     # Parameters for Y test point
     #labels2 = label      # possible values of Y
@@ -56,7 +52,6 @@ def Simple_generater(number = 1000, label = [0, 1, 2], probss = [0.1,0.3,0.6], p
     # Combine
     # sample = pd.DataFrame({"X": x_sample,"Y": y_sample})
     # test = pd.DataFrame({"X": x_test,"Y": y_test})
-    # print(sample[0:10])
 
     return x_sample, y_sample, x_test, y_test
 

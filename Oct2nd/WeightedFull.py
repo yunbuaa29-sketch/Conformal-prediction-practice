@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import log_loss
 
 class WeightedFull():
-    def __init__(self, x_sample, y_sample, x_test,label = [0, 1, 2], probsp = [0.1,0.3,0.6], probsq = [0.5,0.2,0.3], alpha=0.05):
+    def __init__(self, x_sample, y_sample, x_test,label = [0, 1, 2], probsp = [0.3,0.3,0.4], probsq = [0.6,0.2,0.2], alpha=0.05):
         ##Step 1 prepare data and respective weights
         self.x_dataset =np.append(x_sample,x_test)
         self.y_sample =y_sample
@@ -18,61 +18,57 @@ class WeightedFull():
         self.probq = probsq
 
         self.alpha = alpha
-
-        # self.wt = wc_gen.Weight_test()
     
     def train_classifier(self,x_dataset, y_dataset):
         """
-    Compute conformal scores: s(x, y) = -p_hat(y|x)
-
-    Parameters
-    ----------
-    x_dataset : array-like of shape (n_samples, n_features)
-        Feature dataset (includes n calibration + 1 hypothesis point).
-    y_dataset : array-like of shape (n_samples,)
-        Corresponding labels including hypothesis point
-
-    Returns
-    -------
-    estimated probability for each x with each label of y
+    train the pre - trained model over sample+hypothesis point
+    return predict_proba  
     """
         X = x_dataset.reshape(-1, 1) 
         clf = LogisticRegression(multi_class="multinomial", solver="lbfgs")
         clf.fit(X,y_dataset)
-        return clf.predict_proba(X)
+        
+        p = clf.predict_proba(X) 
+        
+        return p 
     
     def score(self, y_hypo):
         """
-    Compute conformal scores: s(x, y) = -p_hat(y|x)
-
-    Parameters
-    ----------
-    y_hypo: label of htpothesis point
-    Returns
-    -------
-    scores : np.ndarray of shape (n_samples,)
-        Conformal nonconformity scores.
-        """
-        
+    Compute conformal scores: s(x, y) = -p_hat(y|x) based on the pre trained model
+        """       
         y_dataset = np.append(self.y_sample,y_hypo) # with n+1 instances
-        probs_calib = self.train_classifier(self.x_dataset,y_dataset) 
+        probs_calib = self.train_classifier(self.x_dataset,y_dataset)  
 
-        #p = clf.predict_proba(x_dataset)  # shape (n_calib, K)
-        scores_calib = -probs_calib[np.arange(len(y_dataset)), y_dataset]#label starts from 0
-        
-        #size = len(scores_calib)-1
-        return scores_calib
-    
+        scores_true=-np.array([probs_calib[i, y_dataset[i]] for i in range(len(y_dataset))])
+        return  scores_true 
+
+
+    def weighted_quantile(self, score_w):
+    # Sort by score ascending
+        sorted_df = score_w.sort_values(by="score", ascending = True).reset_index(drop=True)
+    # Cumulative sum of normalized weights
+        w = sorted_df["weight"].to_numpy()
+        s = sorted_df["score"].to_numpy()
+        w_cum = np.cumsum(w / np.sum(w))
+    # Find first score where cum prob >= 1 - alpha
+        target = 1 - self.alpha
+        idx = np.searchsorted(w_cum, target, side="right")
+        idx = min(idx, len(s) - 1)  # clamp to last index
+        return s[idx]
+
     #######Find Weighted Quantile
-    def quantile(self, score_w):
-        sorted_arr = score_w.sort_values(by="score",ascending=True)
-        quant = 0
-        i = 0
-        while quant<=1-self.alpha:
-            quant  = quant+sorted_arr["weight"][i]
-            i=i+1
-       
-        return sorted_arr["score"][i]
+    # def quantile(self, score_w):
+    #     sorted_arr = score_w.sort_values(by="score",ascending=True)
+    #     i = 0
+    #     quant = sorted_arr["weight"][i]
+    #     q = 1-self.alpha
+        
+    #     while quant<=q and i<len(sorted_arr["weight"]):
+            
+    #         i=i+1
+    #         quant  = quant+sorted_arr["weight"][i]
+ 
+    #     return sorted_arr.loc[i, "score"]
 
     ####### perform the 7.1 algorithm
     def alg(self):
@@ -81,21 +77,23 @@ class WeightedFull():
             y_hypo = self.label[i]
             wc_gen = wc.WeightCal(self.y_sample, y_hypo, self.label,self.probp, self.probq) 
             weight = wc_gen.Weight_i() #n+1 weights
+            
             scoreset = self.score(y_hypo)
             s_hypo = scoreset[-1]
 
-            score_w = pd.DataFrame({"score": scoreset,"weight": weight})        
-            if s_hypo <= self.quantile(score_w):
+            score_w = pd.DataFrame({"score": scoreset,"weight": weight})   
+            qa = self.weighted_quantile(score_w)
+
+            if s_hypo <= qa:
                 prediction_set.append(y_hypo)
 
         return prediction_set
 
 
-
 if __name__ == "__main__":
     
     coverage = 0
-    n=100 #number of simulations
+    n=200 #number of simulations
     # calculate the coverage rate for n times simulations
     for i in range(n):
         # generate data
